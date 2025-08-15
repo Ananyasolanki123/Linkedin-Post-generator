@@ -1,7 +1,10 @@
 from llm_helper import llm
 from fewshots import FewShotPosts
 import requests
+import os
 import streamlit as st
+
+# Load environment variables
 
 few_shot = FewShotPosts()
 
@@ -46,7 +49,7 @@ def generate_post_from_sheet(row):
                     "description": art.get("description", "")
                 })
         except Exception as e:
-            st.warning(f"Failed to fetch news: {e}")
+            print(f"[WARN] Failed to fetch news: {e}")
 
     project_info = f"""
     Topic: {tag}
@@ -66,7 +69,6 @@ def generate_post_from_sheet(row):
 
 
 def get_prompt_with_news(project_info, news_facts, tone, include_sources=False):
-    """Builds prompt including recent news facts."""
     news_text = "\n".join(
         f"- {fact['description']} (Source: {fact['source']}, {fact['published']})"
         for fact in news_facts if fact["description"]
@@ -75,7 +77,7 @@ def get_prompt_with_news(project_info, news_facts, tone, include_sources=False):
     prompt = f"""
     Write a LinkedIn post of approximately 100 words.
     The post should:
-    - Explain the project based on the following info within 100 words: {project_info}
+    - Explain the project based on the following info within 100 word: {project_info}
     - Naturally highlight the caption **{project_info.split("Caption:")[1].strip()}** (make it stand out with bold formatting).
     - Include the recent industry facts below, but limit them to about 40 words total:
       {news_text}
@@ -84,11 +86,28 @@ def get_prompt_with_news(project_info, news_facts, tone, include_sources=False):
     - Make it ready-to-post text only, without any meta instructions.
     { 'At the end, list the sources in parentheses.' if include_sources else '' }
     """
+
     return prompt
 
 
+
+def generate_analytics_feedback(impressions, reactions, comments, shares):
+    engagement_rate = ((reactions + comments + shares) / impressions * 100) if impressions else 0
+    feedback_prompt = f"""
+    You are a LinkedIn post coach. Analyze these post analytics and give 3 short, actionable tips for improvement.
+    
+    Impressions: {impressions}
+    Reactions: {reactions}
+    Comments: {comments}
+    Shares: {shares}
+    Engagement Rate: {engagement_rate:.2f}%
+
+    Keep feedback under 20 words and easy for a beginner to follow.
+    """
+    return llm.invoke(feedback_prompt).content
+
+
 def get_prompt(length, language, tag, location, office, user_topic, caption, tone, news_section):
-    """Builds prompt without news facts."""
     length_str = get_length_str(length)
     prompt = f"""
     Generate a LinkedIn post using the following details. No preamble.
@@ -112,3 +131,11 @@ def get_prompt(length, language, tag, location, office, user_topic, caption, ton
         for i, post in enumerate(examples[:2]):
             prompt += f"\nExample {i+1}:\n{post['text']}\n"
     return prompt
+
+
+def safe_int(value):
+    """Safely convert value to int, returning 0 if not possible."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
