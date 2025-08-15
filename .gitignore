@@ -1,2 +1,1 @@
-# Ignore Google Cloud service account key
-service_account.json
+*
