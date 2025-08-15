@@ -5,6 +5,7 @@ from fewshots import FewShotPosts
 from post_generator import generate_post_from_sheet, generate_analytics_feedback
 from fetch_url import fetch_latest_form_data
 from llm_helper import llm
+FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSehElyFaX904bv3Ch7IFZnHoFTFFfNY-ikFoMa1fkESmad81w/viewform?usp=preview"  # Replace with your Google Form link
 
 
 # --- Utility ---
@@ -187,18 +188,27 @@ def main():
     st.markdown('<div class="email">Enter Your Email</div>', unsafe_allow_html=True)
     user_email = st.text_input("Your Gmail address (used in the form):", placeholder="example@gmail.com")
 
-    if not user_email:
-        st.warning("Please enter your Gmail address to proceed.")
-        return
+  
 
     all_form_data = fetch_latest_form_data()
     form_data = [
         row for row in all_form_data
         if row.get("Email Address") == user_email or row.get("Email Address_2") == user_email
     ]
-
     if not form_data:
-        st.error("⚠ No submissions found. Please check the email you entered.")
+        st.error("⚠ No submissions found for this email.")
+
+        st.markdown(
+            f"""
+            Please fill out the form below to proceed:  
+            👉 [**Fill the Google Form**]({FORM_URL})  
+            """,
+            unsafe_allow_html=True
+        )
+
+        if st.button("🔄 Refresh Data"):
+            st.rerun()
+
         return
 
     st.markdown('<div class="email">Select Your Submission</div>', unsafe_allow_html=True)
