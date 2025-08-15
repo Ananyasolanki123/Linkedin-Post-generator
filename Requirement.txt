@@ -1,8 +1,12 @@
 gspread
 google-auth
+google-auth-oauthlib
 pandas
 python-dotenv
 langchain
+langchain-core
 langchain-groq
 streamlit
 requests
+
+
