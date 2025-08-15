@@ -8,7 +8,8 @@ SHEET_NAME = "Linkedin Post Generator(Responses)"  # Your sheet name
 
 def _get_gspread_client():
     try:
-        sa_info = json.loads(st.secrets["gcp_service_account"])
+        # Use the dict directly from secrets
+        sa_info = st.secrets["gcp_service_account"]
         scopes = [
             "https://www.googleapis.com/auth/spreadsheets",
             "https://www.googleapis.com/auth/drive",
@@ -18,6 +19,7 @@ def _get_gspread_client():
     except Exception as e:
         st.error(f"Google Sheets authentication failed: {e}")
         raise
+
 
 def fetch_latest_form_data():
     client = _get_gspread_client()
