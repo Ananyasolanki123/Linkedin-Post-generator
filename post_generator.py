@@ -35,7 +35,7 @@ def generate_post_from_sheet(row):
 
     # === NewsAPI facts ===
     news_facts = []
-    NEWS_API_KEY = st.secrets["NEWS_API_KEY"]
+    NEWS_API_KEY = st.secrets["api_keys"]["NEWS_API_KEY"]
     if NEWS_API_KEY:
         query = f"{tag} {user_topic}".strip()
         url = f"https://newsapi.org/v2/everything?q={query}&language=en&sortBy=publishedAt&pageSize=3&apiKey={NEWS_API_KEY}"
