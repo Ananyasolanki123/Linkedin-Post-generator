@@ -1,25 +1,26 @@
+import json
+from collections import Counter
 import gspread
 from google.oauth2.service_account import Credentials
-from collections import Counter
-
-SERVICE_ACCOUNT_FILE = "service_account.json"
-SCOPES = [
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive"
-]
-
-# Authenticate
-creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
-client = gspread.authorize(creds)
+import streamlit as st
 
 SHEET_NAME = "Linkedin Post Generator(Responses)"  # Your sheet name
 
+def _get_gspread_client():
+    try:
+        sa_info = json.loads(st.secrets["gcp_service_account"])
+        scopes = [
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive",
+        ]
+        creds = Credentials.from_service_account_info(sa_info, scopes=scopes)
+        return gspread.authorize(creds)
+    except Exception as e:
+        st.error(f"Google Sheets authentication failed: {e}")
+        raise
+
 def fetch_latest_form_data():
-    """
-    Fetch and clean the latest Google Form responses from the sheet.
-    Handles duplicate column names by appending _2, _3, etc.
-    Returns a list of dictionaries (one dict per row).
-    """
+    client = _get_gspread_client()
     sheet = client.open(SHEET_NAME).sheet1
     data = sheet.get_all_values()
 
@@ -42,8 +43,3 @@ def fetch_latest_form_data():
     # Create list of dicts with clean headers
     rows = [dict(zip(clean_headers, row)) for row in data[1:]]
     return rows
-
-# Quick test
-if __name__ == "__main__":
-    from pprint import pprint
-    pprint(fetch_latest_form_data())
