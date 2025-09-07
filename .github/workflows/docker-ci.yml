@@ -1,29 +1,52 @@
-name: Build Docker Image
+name: Build and Deploy Docker to AWS ECS
 
-# Trigger on push to main branch
 on:
   push:
     branches: [ "main" ]
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout repo
+      # Step 1: Checkout code
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Step 2: Build Docker image
+      # Step 2: Configure AWS credentials
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # Step 3: Login to AWS ECR
+      - name: Login to Amazon ECR
+        run: |
+          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | \
+          docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+
+      # Step 4: Build Docker image
       - name: Build Docker image
         run: docker build -t linkedinai-app .
 
-      # Step 3: Run tests (optional)
-      - name: Test Docker image
+      # Step 5: Tag Docker image for ECR
+      - name: Tag Docker image
         run: |
-          docker run --rm linkedinai-app echo "Image built successfully!"
+          docker tag linkedinai-app:latest \
+          ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/linkedinai-app:latest
 
-      # Step 4: List images (optional)
-      - name: List Docker images
-        run: docker image ls
+      # Step 6: Push Docker image to ECR
+      - name: Push Docker image to ECR
+        run: |
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/linkedinai-app:latest
+
+      # Step 7: Update ECS service
+      - name: Deploy to ECS
+        run: |
+          aws ecs update-service \
+          --cluster ${{ secrets.ECS_CLUSTER_NAME }} \
+          --service ${{ secrets.ECS_SERVICE_NAME }} \
+          --force-new-deployment
 
