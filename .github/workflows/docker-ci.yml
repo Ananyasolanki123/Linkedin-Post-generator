@@ -1,0 +1,29 @@
+name: Build Docker Image
+
+# Trigger on push to main branch
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout repo
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: Build Docker image
+      - name: Build Docker image
+        run: docker build -t linkedinai-app .
+
+      # Step 3: Run tests (optional)
+      - name: Test Docker image
+        run: |
+          docker run --rm linkedinai-app echo "Image built successfully!"
+
+      # Step 4: List images (optional)
+      - name: List Docker images
+        run: docker image ls
+
