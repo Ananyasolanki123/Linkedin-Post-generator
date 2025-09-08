@@ -1,4 +1,4 @@
-name: Build and Deploy Docker to AWS ECS
+name: CI/CD to AWS App Runner
 
 on:
   push:
@@ -9,44 +9,36 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout code
-      - name: Checkout code
+      # 1. Checkout code
+      - name: Checkout repo
         uses: actions/checkout@v3
 
-      # Step 2: Configure AWS credentials
-      - name: Configure AWS credentials
+      # 2. Configure AWS credentials
+      - name: Configure AWS
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      # Step 3: Login to AWS ECR
-      - name: Login to Amazon ECR
+      # 3. Login to Amazon ECR
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      # 4. Build and push Docker image
+      - name: Build and Push Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: linkedinai-app
+          IMAGE_TAG: ${{ github.sha }}
         run: |
-          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | \
-          docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-      # Step 4: Build Docker image
-      - name: Build Docker image
-        run: docker build -t linkedinai-app .
-
-      # Step 5: Tag Docker image for ECR
-      - name: Tag Docker image
+      # 5. Deploy to App Runner
+      - name: Update App Runner service
         run: |
-          docker tag linkedinai-app:latest \
-          ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/linkedinai-app:latest
-
-      # Step 6: Push Docker image to ECR
-      - name: Push Docker image to ECR
-        run: |
-          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/linkedinai-app:latest
-
-      # Step 7: Update ECS service
-      - name: Deploy to ECS
-        run: |
-          aws ecs update-service \
-          --cluster ${{ secrets.ECS_CLUSTER_NAME }} \
-          --service ${{ secrets.ECS_SERVICE_NAME }} \
-          --force-new-deployment
-
+          aws apprunner update-service \
+            --service-arn ${{ secrets.APP_RUNNER_SERVICE_ARN }} \
+            --source-configuration "ImageRepository={ImageIdentifier=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG,ImageRepositoryType=ECR},AutoDeploymentsEnabled=true"
